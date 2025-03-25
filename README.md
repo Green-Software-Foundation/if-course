@@ -1,0 +1,1 @@
+This is the course content for the IF SCI course (SCI FI code word!)
