@@ -1,0 +1,7 @@
+energy-from-memory-utilization: # <1>
+  method: Coefficient
+  path: "builtin"
+  config:
+    input-parameter: memory-utilization # <1>
+    coefficient: 0.00039 # <1>
+    output-parameter: memory-energy # <1>
