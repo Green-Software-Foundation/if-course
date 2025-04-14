@@ -1,0 +1,91 @@
+name: memory-utilization-to-carbon
+description: two-step demo
+tags:
+initialize:
+  plugins:
+    memory-to-energy:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: [memory-utilization, memory-coefficient]
+        output-parameter: memory-energy-kwh
+    energy-to-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: [energy, carbon-intensity]
+        output-parameter: operational-carbon
+    interpolate-power-curve:
+      method: Interpolation
+      path: "builtin"
+      config:
+        method: linear
+        x: [0, 10, 50, 100]
+        y: [0.12, 0.32, 0.75, 1.02]
+        input-parameter: "cpu-utilization"
+        output-parameter: "tdp-multiplier"
+    tdp-multiplier-to-power:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["tdp-multiplier", "tdp"]
+        output-parameter: "cpu-power"
+    power-to-energy-kwh:
+      method: Divide
+      path: "builtin"
+      config:
+        numerator: cpu-power
+        denominator: 1000
+        output: cpu-energy-kwh
+    sum-energy-components:
+      path: "builtin"
+      method: Sum
+      config:
+        input-parameters:
+          - memory-energy-kwh
+          - cpu-energy-kwh
+        output-parameter: energy
+    embodied-carbon:
+      path: builtin
+      method: SciEmbodied
+    sum-carbon-components:
+      path: "builtin"
+      method: Sum
+      config:
+        input-parameters:
+          - operational-carbon
+          - embodied-carbon
+        output-parameter: carbon
+    sci:
+      method: Sci
+      path: "builtin"
+      config:
+        functional-unit: site-visits
+ 
+tree:
+  children:
+    component-1:
+      defaults:
+        vCPUs: 2
+        memory: 16
+        SSD: 1
+      pipeline:
+        compute:
+          - memory-to-energy
+          - interpolate-power-curve
+          - tdp-multiplier-to-power
+          - power-to-energy-kwh
+          - sum-energy-components
+          - energy-to-carbon
+          - embodied-carbon
+          - sum-carbon-components
+          - sci
+      inputs:
+        - timestamp: 2023-08-01T00:00
+          duration: 3600
+          memory-utilization: 8.8
+          cpu-utilization: 80
+          tdp: 205
+          memory-coefficient: 0.00039
+          carbon-intensity: 163
+          site-visits: 210
