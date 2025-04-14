@@ -1,0 +1,27 @@
+name: energy-to-carbon
+description: minimal demo
+tags:
+initialize:
+  plugins:
+    carbon-from-energy:          
+      method: Multiply           
+      path: "builtin"            
+      config:                    
+        input-parameters:        
+          - energy  
+          - carbon-intensity
+        output-parameter: carbon 
+tree:
+  children:
+    server-1:
+      defaults:
+      # highlight-start
+      pipeline:
+        compute:
+          - carbon-from-energy
+      # highlight-end          
+      inputs:
+        - timestamp: 2023-08-06T00:00
+          duration: 3600
+          energy: 0.05
+          carbon-intensity: 163
