@@ -1,0 +1,40 @@
+name: sci-walkthrough
+description: This manifest file computes the carbon per visit for our website
+initialize:
+  plugins:
+    cloud-instance-metadata:
+      method: CSVLookup
+      path: 'builtin'
+      config:
+        filepath: /Users/jawache/Development/gsf/if-course/src/cloud-metdata-azure-instances.csv
+        query: 
+          instance-class: "cloud-instance"
+        output: 
+          - cpu-tdp
+    energy-from-memory-utilization:        
+      method: Coefficient
+      path: "builtin"
+      config:
+        input-parameter: memory-utilization 
+        coefficient: 0.00039                
+        output-parameter: memory-energy   
+    # highlight-end
+tree:
+  children:
+    server-1:
+        defaults:
+          cloud-region: West UK    
+          cloud-instance: "Standard_A2m_v2"
+          cloud-provider: Azure      
+        pipeline:
+          compute:
+            # highlight-start
+            - cloud-instance-metadata
+            - energy-from-memory-utilization
+            # highlight-end
+        inputs:
+        - timestamp: 2023-08-06T00:00
+          duration: 3600      
+          site-visits: 550
+          cpu-utilization: 80
+          memory-utilization: 8  
