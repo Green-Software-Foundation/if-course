@@ -1,0 +1,289 @@
+name: greensoftware-foundation-website-sci
+description: |
+  SCI calculation for greensoftware.foundation website per page view.
+  This manifest implements the complete SCI methodology including operational
+  and embodied emissions across datacenter, network, and end-user device segments.
+
+  Methodology: Calculation-based using Sustainable Web Design Model v4 (2024)
+  Functional Unit: 1 page view
+  Software Boundary: Datacenter servers, network infrastructure, end-user devices
+
+  References:
+  - SCI Specification v1.1.0
+  - Sustainable Web Design Model 2024 (sustainablewebdesign.org)
+  - Tech Carbon Standard (techcarbonstandard.org)
+
+tags:
+  kind: web
+  complexity: simple
+  category: on-premise
+
+initialize:
+  plugins:
+    # Datacenter energy calculation: data_transfer_gb * 0.055 kWh/GB
+    datacenter-energy:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["data-transfer-gb", "datacenter-energy-intensity"]
+        output-parameter: "energy-datacenter"
+
+    # Network energy calculation: data_transfer_gb * 0.059 kWh/GB
+    network-energy:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["data-transfer-gb", "network-energy-intensity"]
+        output-parameter: "energy-network"
+
+    # Device energy calculation: data_transfer_gb * 0.080 kWh/GB
+    device-energy:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["data-transfer-gb", "device-energy-intensity"]
+        output-parameter: "energy-device"
+
+    # Sum all energy components
+    sum-energy:
+      path: builtin
+      method: Sum
+      config:
+        input-parameters:
+          - energy-datacenter
+          - energy-network
+          - energy-device
+        output-parameter: energy
+
+    # Datacenter operational carbon: energy_datacenter * carbon_intensity
+    datacenter-operational-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["energy-datacenter", "grid/carbon-intensity"]
+        output-parameter: "carbon-operational-datacenter"
+
+    # Network operational carbon: energy_network * carbon_intensity
+    network-operational-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["energy-network", "grid/carbon-intensity"]
+        output-parameter: "carbon-operational-network"
+
+    # Device operational carbon: energy_device * carbon_intensity
+    device-operational-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["energy-device", "grid/carbon-intensity"]
+        output-parameter: "carbon-operational-device"
+
+    # Sum operational carbon
+    sum-operational-carbon:
+      path: builtin
+      method: Sum
+      config:
+        input-parameters:
+          - carbon-operational-datacenter
+          - carbon-operational-network
+          - carbon-operational-device
+        output-parameter: carbon-operational
+
+    # Datacenter embodied carbon: 25% of operational (ratio method)
+    datacenter-embodied-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["carbon-operational-datacenter", "embodied-ratio"]
+        output-parameter: "carbon-embodied-datacenter"
+
+    # Network embodied carbon: 12% of datacenter embodied
+    network-embodied-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["carbon-embodied-datacenter", "network-embodied-ratio"]
+        output-parameter: "carbon-embodied-network"
+
+    # Device embodied carbon: 25% of device operational
+    device-embodied-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters: ["carbon-operational-device", "embodied-ratio"]
+        output-parameter: "carbon-embodied-device"
+
+    # Sum embodied carbon
+    sum-embodied-carbon:
+      path: builtin
+      method: Sum
+      config:
+        input-parameters:
+          - carbon-embodied-datacenter
+          - carbon-embodied-network
+          - carbon-embodied-device
+        output-parameter: carbon-embodied
+
+    # Sum total carbon
+    sum-carbon:
+      path: builtin
+      method: Sum
+      config:
+        input-parameters:
+          - carbon-operational
+          - carbon-embodied
+        output-parameter: carbon
+
+    # Calculate SCI score
+    sci:
+      path: builtin
+      method: Sci
+      config:
+        functional-unit: page-views
+
+tree:
+  children:
+    greensoftware-foundation-website:
+      pipeline:
+        compute:
+          # Energy calculations
+          - datacenter-energy
+          - network-energy
+          - device-energy
+          - sum-energy
+          # Operational carbon calculations
+          - datacenter-operational-carbon
+          - network-operational-carbon
+          - device-operational-carbon
+          - sum-operational-carbon
+          # Embodied carbon calculations
+          - datacenter-embodied-carbon
+          - network-embodied-carbon
+          - device-embodied-carbon
+          - sum-embodied-carbon
+          # Final calculations
+          - sum-carbon
+          - sci
+
+      defaults:
+        # Data transfer per page view
+        # Source: Direct observation + estimation (CSS: 200KB, JS: 100KB, Fonts: 200KB, Images: 500KB, HTML: 50KB)
+        # Total: 1,050 KB = 1.05 MB = 0.00105 GB
+        data-transfer-gb: 0.00105
+
+        # Energy intensity coefficients (kWh/GB)
+        # Source: Sustainable Web Design Model v4, 2024
+        # https://sustainablewebdesign.org/estimating-digital-emissions/
+        datacenter-energy-intensity: 0.055  # kWh/GB for datacenter
+        network-energy-intensity: 0.059     # kWh/GB for network
+        device-energy-intensity: 0.080      # kWh/GB for end-user device
+
+        # Grid carbon intensity (gCO2e/kWh)
+        # Source: Sustainable Web Design Model v4, 2024 - Global average
+        # https://sustainablewebdesign.org/estimating-digital-emissions/
+        grid/carbon-intensity: 494
+
+        # Embodied carbon ratio (embodied / operational)
+        # Source: Tech Carbon Standard, Cloud Carbon Footprint
+        # Industry standard: 20-30% for servers, using 25% (mid-point)
+        # https://www.techcarbonstandard.org/technology-categories/lifecycle/
+        embodied-ratio: 0.25
+
+        # Network equipment embodied ratio relative to server embodied
+        # Source: Proportional estimation based on Cloud Carbon Footprint methodology
+        # Network equipment typically 10-15% of server embodied, using 12%
+        network-embodied-ratio: 0.12
+
+        # Functional unit
+        page-views: 1
+
+      inputs:
+        # Single page view observation
+        # This represents one user viewing one page on greensoftware.foundation
+        - timestamp: "2025-10-27T00:00:00.000Z"
+          duration: 2  # Average page load/view time in seconds
+          comment: "Baseline page view for greensoftware.foundation website"
+
+        # Additional sample observations to show variability
+        - timestamp: "2025-10-27T00:00:02.000Z"
+          duration: 2
+          comment: "Page view #2"
+
+        - timestamp: "2025-10-27T00:00:04.000Z"
+          duration: 2
+          comment: "Page view #3"
+
+        - timestamp: "2025-10-27T00:00:06.000Z"
+          duration: 2
+          comment: "Page view #4"
+
+        - timestamp: "2025-10-27T00:00:08.000Z"
+          duration: 2
+          comment: "Page view #5"
+
+# Documentation and assumptions
+#
+# CALCULATION METHODOLOGY:
+#
+# 1. OPERATIONAL EMISSIONS (O = E × I)
+#    - Datacenter: 0.00105 GB × 0.055 kWh/GB × 494 gCO2e/kWh = 0.0285 gCO2e
+#    - Network: 0.00105 GB × 0.059 kWh/GB × 494 gCO2e/kWh = 0.0306 gCO2e
+#    - Device: 0.00105 GB × 0.080 kWh/GB × 494 gCO2e/kWh = 0.0415 gCO2e
+#    - Total O = 0.1006 gCO2e
+#
+# 2. EMBODIED EMISSIONS (M)
+#    - Datacenter: 0.0285 × 0.25 = 0.0071 gCO2e
+#    - Network: 0.0071 × 0.12 = 0.0009 gCO2e
+#    - Device: 0.0415 × 0.25 = 0.0104 gCO2e
+#    - Total M = 0.0184 gCO2e
+#
+# 3. FINAL SCI SCORE
+#    - SCI = (O + M) / R
+#    - SCI = (0.1006 + 0.0184) / 1 page view
+#    - SCI = 0.119 gCO2e per page view
+#    - Rounded: 0.12 gCO2e per page view
+#
+# EXPECTED OUTPUT VALUES (per page view):
+# - energy-datacenter: 0.00005775 kWh
+# - energy-network: 0.00006195 kWh
+# - energy-device: 0.00008400 kWh
+# - energy (total): 0.0002037 kWh
+# - carbon-operational-datacenter: 0.02853 gCO2e
+# - carbon-operational-network: 0.03060 gCO2e
+# - carbon-operational-device: 0.04150 gCO2e
+# - carbon-operational (total): 0.10063 gCO2e
+# - carbon-embodied-datacenter: 0.00713 gCO2e
+# - carbon-embodied-network: 0.00086 gCO2e
+# - carbon-embodied-device: 0.01038 gCO2e
+# - carbon-embodied (total): 0.01837 gCO2e
+# - carbon (total): 0.119 gCO2e
+# - sci: 0.119 gCO2e per page view
+#
+# SOFTWARE BOUNDARY:
+# - Vercel edge functions / AWS origin servers (datacenter)
+# - CDN and network infrastructure (network)
+# - End-user browser rendering (device)
+#
+# EXCLUSIONS:
+# - Development and CI/CD pipeline emissions
+# - Third-party services (Algolia search)
+# - Organizational infrastructure
+#
+# LIMITATIONS:
+# - Page weight estimated (±25% uncertainty)
+# - Global average carbon intensity used (actual varies by region)
+# - Model-based calculation (no direct telemetry)
+# - First-time visitor assumption (no cache benefit)
+# - Overall confidence: Medium (±30%)
+#
+# SOURCES:
+# [1] SCI Specification v1.1.0 (local: SCI-spec.md)
+# [2] Sustainable Web Design Model v4, 2024
+#     https://sustainablewebdesign.org/estimating-digital-emissions/
+# [3] Tech Carbon Standard, 2024
+#     https://www.techcarbonstandard.org/technology-categories/lifecycle/
+# [4] Cloud Carbon Footprint
+#     https://www.cloudcarbonfootprint.org/docs/embodied-emissions/
+# [5] IEA Emissions Factors 2024
+#     https://www.iea.org/data-and-statistics/data-product/emissions-factors-2024
