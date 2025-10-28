@@ -12,7 +12,11 @@ description: |
   - SCI Specification v1.1.0
   - Sustainable Web Design Model 2024 (sustainablewebdesign.org)
   - Tech Carbon Standard (techcarbonstandard.org)
-
+aggregation:
+  type: 'both'
+  metrics:
+    - carbon
+    - sci
 tags:
   kind: web
   complexity: simple
