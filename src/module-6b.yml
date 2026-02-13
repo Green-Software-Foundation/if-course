@@ -1,0 +1,74 @@
+name: sci-walkthrough
+description: This manifest file computes the carbon per visit for our website
+tags:
+initialize:
+  plugins:
+    memory-utilization-to-memory-energy:
+      method: Coefficient
+      path: "builtin"
+      config:
+        input-parameter: memory-utilization
+        coefficient: 0.00039
+        output-parameter: memory-energy
+    cloud-instance-to-cpu-tdp:
+      method: CSVLookup
+      path: 'builtin'
+      config:
+        filepath: https://raw.githubusercontent.com/Green-Software-Foundation/if-course/refs/heads/main/src/cloud-metdata-azure-instances.csv
+        query:
+          instance-class: "cloud-instance"
+        output:
+          - cpu-tdp
+    cpu-utilization-to-tdp-multiplier:
+      method: Interpolation
+      path: "builtin"
+      config:
+        method: linear
+        x: [0, 10, 50, 100]
+        y: [0.12, 0.32, 0.75, 1.02]
+        input-parameter: "cpu-utilization"
+        output-parameter: "tdp-multiplier"
+    tdp-multiplier-to-cpu-power:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters:
+          - tdp-multiplier
+          - cpu-tdp
+        output-parameter: "cpu-power"
+    cpu-power-to-cpu-energy:
+      method: Divide
+      path: "builtin"
+      config:
+        numerator: cpu-power
+        denominator: 1000
+        output: cpu-energy
+    sum-all-energy-to-operational-energy:
+      path: "builtin"
+      method: Sum
+      config:
+        input-parameters:
+          - memory-energy
+          - cpu-energy
+        output-parameter: operational-energy
+tree:
+  children:
+    server-1:
+      defaults:
+        cloud-region: westeurope
+        cloud-instance: Standard_A2m_v2
+        cloud-provider: "Microsoft Azure"
+      pipeline:
+        compute:
+          - memory-utilization-to-memory-energy
+          - cloud-instance-to-cpu-tdp
+          - cpu-utilization-to-tdp-multiplier
+          - tdp-multiplier-to-cpu-power
+          - cpu-power-to-cpu-energy
+          - sum-all-energy-to-operational-energy
+      inputs:
+        - timestamp: 2023-08-01T00:00
+          duration: 3600
+          memory-utilization: 8.8
+          cpu-utilization: 80
+          site-visits: 210
