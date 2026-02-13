@@ -10,7 +10,7 @@ initialize:
         input-parameter: memory-utilization
         coefficient: 0.00039
         output-parameter: memory-energy
-    cloud-instance-to-cpu-tdp:
+    cloud-instance-metadata:
       method: CSVLookup
       path: 'builtin'
       config:
@@ -18,7 +18,9 @@ initialize:
         query:
           instance-class: "cloud-instance"
         output:
-          - cpu-tdp
+          - ['cpu-tdp', 'cpu-tdp']
+          - ['cpu-cores-utilized', 'vCPUs']
+          - ['memory-available', 'memory']
     cpu-utilization-to-tdp-multiplier:
       method: Interpolation
       path: "builtin"
@@ -43,7 +45,7 @@ initialize:
         numerator: cpu-power
         denominator: 1000
         output: cpu-energy
-    sum-all-energy-to-operational-energy:
+    to-operational-energy:
       path: "builtin"
       method: Sum
       config:
@@ -51,6 +53,40 @@ initialize:
           - memory-energy
           - cpu-energy
         output-parameter: operational-energy
+    carbon-intensity-from-region:
+      method: CSVLookup
+      path: builtin
+      config:
+        filepath: https://raw.githubusercontent.com/Green-Software-Foundation/real-time-cloud/refs/heads/main/Cloud_Region_Metadata.csv
+        query:
+          cloud-provider: "cloud-provider"
+          cloud-region: "cloud-region"
+        output:
+          - ['grid-carbon-intensity-average-consumption-annual', 'carbon-intensity']
+    to-operational-carbon:
+      method: Multiply
+      path: builtin
+      config:
+        input-parameters:
+          - operational-energy
+          - carbon-intensity
+        output-parameter: operational-carbon
+    embodied-carbon:
+      path: builtin
+      method: SciEmbodied
+    to-total-carbon:
+      path: "builtin"
+      method: Sum
+      config:
+        input-parameters:
+          - operational-carbon
+          - embodied-carbon
+        output-parameter: carbon
+    sci:
+      path: "builtin"
+      method: Sci
+      config:
+        functional-unit: site-visits
 tree:
   children:
     server-1:
@@ -58,17 +94,35 @@ tree:
         cloud-region: westeurope
         cloud-instance: Standard_A2m_v2
         cloud-provider: "Microsoft Azure"
+        ssd: 1
+        hdd: 0
+        gpu: 0
       pipeline:
         compute:
           - memory-utilization-to-memory-energy
-          - cloud-instance-to-cpu-tdp
+          - cloud-instance-metadata
           - cpu-utilization-to-tdp-multiplier
           - tdp-multiplier-to-cpu-power
           - cpu-power-to-cpu-energy
-          - sum-all-energy-to-operational-energy
+          - to-operational-energy
+          - carbon-intensity-from-region
+          - to-operational-carbon
+          - embodied-carbon
+          - to-total-carbon
+          - sci
       inputs:
         - timestamp: 2023-08-01T00:00
           duration: 3600
           memory-utilization: 8.8
           cpu-utilization: 80
           site-visits: 210
+        - timestamp: 2023-08-02T00:00
+          duration: 3600
+          memory-utilization: 5.2
+          cpu-utilization: 55
+          site-visits: 190
+        - timestamp: 2023-08-03T00:00
+          duration: 3600
+          memory-utilization: 15.4
+          cpu-utilization: 90
+          site-visits: 340
