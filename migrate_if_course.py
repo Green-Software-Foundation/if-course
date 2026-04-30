@@ -73,12 +73,10 @@ def post_lesson(
 ) -> bool:
     url = f"{api_base}/networks/{network_id}/spaces/{space_id}/courseworks"
     payload = {
-        "coursework": {
-            "type": "lesson",
-            "title": lesson["title"],
-            "body": lesson["body"],
-            "position": lesson["position"],
-        }
+        "type": "lesson",
+        "title": lesson["title"],
+        "body": lesson["body"],
+        "position": lesson["position"],
     }
     response = session.post(url, json=payload)
     if response.ok:
