@@ -89,6 +89,11 @@ def fetch_existing_courseworks(session, api_base, network_id, space_id) -> dict:
     if not response.ok:
         sys.exit(f"ERROR fetching existing courseworks: HTTP {response.status_code}: {response.text[:200]}")
     data = response.json()
+    print(f"\n  [DEBUG] GET {url}")
+    print(f"  [DEBUG] response keys: {list(data.keys()) if isinstance(data, dict) else f'list of {len(data)}'}")
+    if isinstance(data, dict):
+        for k, v in data.items():
+            print(f"  [DEBUG]   {k!r}: {str(v)[:120]}")
     # handle both {"courseworks": [...]} and plain list
     items = data if isinstance(data, list) else data.get("courseworks", data.get("data", []))
     return {item["title"]: item["id"] for item in items}
