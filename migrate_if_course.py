@@ -76,7 +76,6 @@ def post_lesson(
         "type": "lesson",
         "title": lesson["title"],
         "description": lesson["body"],
-        "position": lesson["position"],
     }
     response = session.post(url, json=payload)
     if response.ok:
